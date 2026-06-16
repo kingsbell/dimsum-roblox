@@ -4,6 +4,12 @@
 if _G.AutoCollectAktif == nil then
     _G.AutoCollectAktif = false
 end
+if _G.AutoBuyAktif == nil then
+    _G.AutoBuyAktif = false
+end
+if _G.TargetRarity == nil then
+    _G.TargetRarity = "All"
+end
 
 -- Mencegah loop berjalan ganda (Crash Prevention) jika loadstring dipanggil dua kali
 if _G.AutoFarmLoopStarted then return end
@@ -42,12 +48,11 @@ end
 -- Looping Utama yang berjalan di latar belakang (selamanya)
 task.spawn(function()
     while true do
-        -- Skrip hanya akan teleport / bekerja APABILA Toggle di UI Anda menyala (true)
+        -- [FITUR 1] Auto Collect Koin
         if _G.AutoCollectAktif then
             local char = player.Character
             local root = char and char:FindFirstChild("HumanoidRootPart")
 
-            -- Mendeteksi base secara real-time (berguna jika user pindah base sebelum menyalakan toggle)
             local myBase = getMyBase()
 
             if root and myBase then
@@ -55,7 +60,6 @@ task.spawn(function()
 
                 if slotsFolder then
                     for i = 1, 96 do
-                        -- Fitur Darurat: Jika tiba-tiba UI dimatikan di tengah-tengah teleport, skrip langsung berhenti
                         if not _G.AutoCollectAktif then break end
 
                         local slot = slotsFolder:FindFirstChild(tostring(i))
@@ -73,7 +77,6 @@ task.spawn(function()
                                 end
                             end
 
-                            -- TELEPORTASI
                             if targetPart and targetPart:IsA("BasePart") then
                                 root.CFrame = targetPart.CFrame
                                 task.wait(0.1)
@@ -84,7 +87,44 @@ task.spawn(function()
             end
         end
 
-        -- Jeda idle. Jika UI Mati (false), skrip akan tertidur di sini tanpa memakan RAM
+        -- [FITUR 2] Auto Buy CollectibleBox
+        if _G.AutoBuyAktif then
+            local char = player.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            local myBase = getMyBase()
+
+            if root and myBase then
+                -- Mencari semua anak di dalam Base Anda
+                for _, obj in pairs(myBase:GetChildren()) do
+                    if not _G.AutoBuyAktif then break end
+                    
+                    -- Cari objek yang memiliki TierId di dalamnya (seperti CollectibleBox)
+                    local tierIdObj = obj:FindFirstChild("TierId")
+                    
+                    if tierIdObj then
+                        local tierValue = tostring(tierIdObj.Value)
+                        
+                        -- Cek apakah objek ini VISIBLE (tidak menghilang/transparan)
+                        local isVisible = false
+                        local targetPart = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart", true)
+                        
+                        if targetPart and targetPart.Transparency < 1 then
+                            isVisible = true
+                        end
+                        
+                        -- Jika Box nya ada wujudnya (visible) dan Rarity-nya sesuai
+                        if isVisible then
+                            if _G.TargetRarity == "All" or _G.TargetRarity == tierValue then
+                                root.CFrame = targetPart.CFrame
+                                task.wait(0.2) -- Jeda saat membeli
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        -- Jeda idle
         task.wait(0.1)
     end
 end)
